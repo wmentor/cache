@@ -2,12 +2,11 @@ package cache
 
 import (
 	"sync"
-
-	"github.com/wmentor/dsn"
 )
 
 const (
-	fillSize float64 = 0.7
+	fillSize = 0.7
+	minSize  = 16
 )
 
 type Cache interface {
@@ -25,15 +24,9 @@ type cache struct {
 	used  int
 }
 
-func New(opts string) Cache {
-
-	size := 10
-
-	if ds, err := dsn.New(opts); err == nil {
-		size = ds.GetInt("size", 10)
-		if size < 10 {
-			size = 10
-		}
+func New(size int) Cache {
+	if size < minSize {
+		size = minSize
 	}
 
 	c := &cache{
@@ -46,7 +39,6 @@ func New(opts string) Cache {
 }
 
 func (c *cache) Get(key string) (interface{}, bool) {
-
 	c.mt.RLock()
 	defer c.mt.RUnlock()
 
@@ -62,7 +54,6 @@ func (c *cache) Get(key string) (interface{}, bool) {
 }
 
 func (c *cache) Set(key string, value interface{}) {
-
 	c.mt.Lock()
 	defer c.mt.Unlock()
 
@@ -83,11 +74,10 @@ func (c *cache) Set(key string, value interface{}) {
 }
 
 func (c *cache) Flush() {
-
 	c.mt.Lock()
-	c.mt.Unlock()
+	defer c.mt.Unlock()
 
-	c.ring1 = make(map[string]interface{}, c.limit)
+	c.ring1 = make(map[string]interface{}, c.limit*2)
 	c.ring2 = make(map[string]interface{})
 
 	c.used = 0
